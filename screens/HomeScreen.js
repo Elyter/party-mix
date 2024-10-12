@@ -9,45 +9,63 @@ import { Share } from 'react-native';
 export default function HomeScreen({ navigation }) {
   const [inputRoomCode, setInputRoomCode] = useState('');
   const [roomLink, setRoomLink] = useState('');
-  const { ws, roomCode, setRoomCode } = useWebSocket();
+  const { ws, roomCode, setRoomCode, clientId } = useWebSocket();
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
 
   const createRoom = () => {
     console.log('Tentative de création de salle');
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ action: 'createRoom' }));
-      console.log('Demande de création de salle envoyée');
-    } else {
-      console.error('WebSocket non connecté ou non prêt');
+
+    if (!ws) {
+      console.error('WebSocket non défini');
       Toast.show({
         type: 'error',
         text1: 'Erreur',
-        text2: 'Impossible de créer une salle. WebSocket non connecté.',
+        text2: 'Connexion WebSocket non établie.',
+      });
+      return;
+    }
+
+    if (ws.readyState !== WebSocket.OPEN) {
+      console.error('WebSocket non ouvert. État actuel:', ws.readyState);
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'La connexion WebSocket n\'est pas ouverte.',
+      });
+      return;
+    }
+
+    try {
+      ws.send(JSON.stringify({ action: 'createRoom', clientId }));
+    } catch (error) {
+      console.error('Erreur lors de l\'envoi du message WebSocket:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Impossible d\'envoyer la demande de création de salle.',
       });
     }
   };
 
   const disconnectRoom = () => {
     console.log('Tentative de déconnexion de la salle');
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ action: 'leaveRoom' }));
+    if (ws && ws.readyState === WebSocket.OPEN && clientId) {
+      ws.send(JSON.stringify({ action: 'leaveRoom', clientId }));
       setRoomCode(null);
-      console.log('Demande de déconnexion envoyée');
     } else {
-      console.error('WebSocket non connecté ou non prêt');
+      console.error('WebSocket non connecté, non prêt, ou clientId manquant');
     }
   };
 
   const joinRoom = () => {
     console.log('Tentative de rejoindre une salle');
-    if (ws && ws.readyState === WebSocket.OPEN && inputRoomCode) {
-      ws.send(JSON.stringify({ action: 'joinRoom', roomCode: inputRoomCode }));
+    if (ws && ws.readyState === WebSocket.OPEN && inputRoomCode && clientId) {
+      ws.send(JSON.stringify({ action: 'joinRoom', roomCode: inputRoomCode, clientId }));
       setRoomCode(inputRoomCode);
-      console.log('Demande pour rejoindre la salle envoyée');
     } else {
-      console.error('WebSocket non connecté ou code de salle manquant');
+      console.error('WebSocket non connecté, code de salle manquant, ou clientId manquant');
       Toast.show({
         type: 'error',
         text1: 'Erreur',
@@ -57,13 +75,14 @@ export default function HomeScreen({ navigation }) {
   };
 
   useEffect(() => {
-    if (ws) {
+    if (ws && clientId) {
       const handleMessage = (e) => {
         const data = JSON.parse(e.data);
         if (data.action === 'roomCreated') {
           setRoomCode(data.roomCode);
-          setRoomLink(`http://51.75.140.251:3000/?code=${data.roomCode}`);
-          ws.send(JSON.stringify({ action: 'joinRoom', roomCode: data.roomCode }));
+          setRoomLink(`https://pm.eliottb.dev/?c=${data.roomCode}`);
+          ws.send(JSON.stringify({ action: 'joinRoom', roomCode: data.roomCode, clientId }));
+          console.log('Rejoindre la salle automatiquement après création avec clientId:', clientId);
         }
       };
 
@@ -73,7 +92,7 @@ export default function HomeScreen({ navigation }) {
         ws.removeEventListener('message', handleMessage);
       };
     }
-  }, [ws, navigation]);
+  }, [ws, navigation, clientId]);
 
   const copyToClipboard = async () => {
     await Clipboard.setStringAsync(roomLink);
@@ -447,4 +466,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-

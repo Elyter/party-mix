@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import Toast from 'react-native-toast-message';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const WebSocketContext = createContext(null);
 
 export const WebSocketProvider = ({ children }) => {
@@ -9,6 +9,7 @@ export const WebSocketProvider = ({ children }) => {
   const [queue, setQueue] = useState([]);
   const [votes, setVotes] = useState(0);
   const [totalClients, setTotalClients] = useState(0);
+  const [clientId, setClientId] = useState(null);
 
   useEffect(() => {
     if (ws) {
@@ -24,14 +25,28 @@ export const WebSocketProvider = ({ children }) => {
           });
         } else if (data.action === 'queueUpdated') {
           setQueue(data.queue);
+          console.log('Queue mise à jour avec', data.queue.length, 'titres');
         } else if (data.action === 'roomCreated') {
           setRoomCode(data.roomCode);
+          // Sauvegarder le code de la salle dans AsyncStorage
+          AsyncStorage.setItem('roomCode', data.roomCode);
+          console.log('Code de la salle sauvegardé dans AsyncStorage:', data.roomCode);
         } else if (data.action === 'joinedRoom') {
           setRoomCode(data.roomCode);
+          console.log('Rejoint la room', data.roomCode);
+          Toast.show({
+            type: 'success',
+            text1: 'Rejoindre la room',
+            text2: `Rejoint la room ${data.roomCode}`,
+          });
+          AsyncStorage.setItem('roomCode', data.roomCode);
+          console.log('Code de la salle sauvegardé dans AsyncStorage:', data.roomCode);
           setQueue(data.queue);
         } else if (data.action === 'votesUpdated') {
           setVotes(data.votes);
           setTotalClients(data.totalClients);
+        } else if (data.action === 'queueRefreshed') {
+          setQueue(data.queue);
         }
       };
 
@@ -42,6 +57,14 @@ export const WebSocketProvider = ({ children }) => {
       };
     }
   }, [ws]);
+
+  useEffect(() => {
+    if (clientId) {
+      console.log('ClientId mis à jour dans le contexte:', clientId);
+    } else {
+      console.log('ClientId est null dans le contexte');
+    }
+  }, [clientId]);
 
   return (
     <WebSocketContext.Provider value={{ 
@@ -54,7 +77,9 @@ export const WebSocketProvider = ({ children }) => {
       votes,
       setVotes,
       totalClients,
-      setTotalClients
+      setTotalClients,
+      clientId,
+      setClientId
     }}>
       {children}
     </WebSocketContext.Provider>

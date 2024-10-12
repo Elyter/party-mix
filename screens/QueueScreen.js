@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View, SafeAreaView, StatusBar, FlatList, Linking } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View, SafeAreaView, StatusBar, FlatList, Linking, RefreshControl } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,11 +7,12 @@ import * as Clipboard from 'expo-clipboard';
 
 export default function QueueScreen() {
   const [inputUrl, setInputUrl] = useState('');
-  const { ws, roomCode, queue } = useWebSocket();
+  const [refreshing, setRefreshing] = useState(false);
+  const { ws, roomCode, queue, setQueue, clientId } = useWebSocket();
 
   const sendSong = () => {
     if (ws && ws.readyState === WebSocket.OPEN && roomCode && inputUrl) {
-      ws.send(JSON.stringify({ action: 'sendSong', roomCode, soundcloudUrl: inputUrl }));
+      ws.send(JSON.stringify({ action: 'sendSong', roomCode, soundcloudUrl: inputUrl, clientId }));
       setInputUrl('');
     }
   };
@@ -71,6 +72,15 @@ export default function QueueScreen() {
     }
   };
 
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    if (ws && ws.readyState === WebSocket.OPEN && roomCode && clientId) {
+      ws.send(JSON.stringify({ action: 'refreshQueue', roomCode, clientId }));
+    }
+    console.log('onRefresh');
+    setRefreshing(false);
+  }, [ws, roomCode]);
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -98,6 +108,14 @@ export default function QueueScreen() {
           renderItem={renderQueueItem}
           keyExtractor={(item, index) => index.toString()}
           style={styles.queueList}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#ff5500']}
+              tintColor="#ff5500"
+            />
+          }
         />
       </View>
     </SafeAreaView>

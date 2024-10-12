@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 export default function ControlsScreen() {
   const [hasVoted, setHasVoted] = useState(false);
-  const { ws, roomCode, votes, totalClients } = useWebSocket();
+  const { ws, roomCode, votes, totalClients, clientId } = useWebSocket();
 
   useEffect(() => {
     if (votes === 0) {
@@ -15,7 +15,7 @@ export default function ControlsScreen() {
 
   const handleVote = () => {
     if (ws && ws.readyState === WebSocket.OPEN && roomCode) {
-      ws.send(JSON.stringify({ action: 'vote', roomCode, vote: !hasVoted }));
+      ws.send(JSON.stringify({ action: 'vote', roomCode, vote: !hasVoted, clientId }));
     }
     setHasVoted(!hasVoted);
   };

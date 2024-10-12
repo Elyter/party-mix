@@ -2,7 +2,7 @@
   "expo": {
     "name": "party-mix",
     "slug": "party-mix",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -14,7 +14,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "dev.eliottb.partymix",
-      "buildNumber": "1.0.0"
+      "buildNumber": "1.1.0"
     },
     "android": {
       "adaptiveIcon": {
@@ -22,7 +22,7 @@
         "backgroundColor": "#111"
       },
       "package": "com.eliottdev.partymix",
-      "versionCode": 2,
+      "versionCode": 3,
       "permissions": ["INTERNET", "ACCESS_NETWORK_STATE"]
     },
     "web": {
