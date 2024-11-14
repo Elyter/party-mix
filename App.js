@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
+import { createStackNavigator } from '@react-navigation/stack';
 import { WebSocketProvider, useWebSocket } from './contexts/WebSocketContext';
 import Toast from 'react-native-toast-message';
 import { enableScreens } from 'react-native-screens';
@@ -13,9 +12,9 @@ enableScreens();
 import HomeScreen from './screens/HomeScreen';
 import QueueScreen from './screens/QueueScreen';
 import ControlsScreen from './screens/ControlsScreen';
-import ProfileScreen from './screens/ProfileScreen';
+import HowToScreen from './screens/HowToScreen';
 
-const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator();
 
 function MainApp() {
   const { ws, setWs, clientId, setClientId } = useWebSocket();
@@ -199,32 +198,8 @@ function MainApp() {
   return (
     <>
       <NavigationContainer>
-        <Tab.Navigator
-          screenOptions={({ route }) => ({
-            tabBarIcon: ({ focused, color, size }) => {
-              let iconName;
-
-              if (route.name === 'Accueil') {
-                iconName = focused ? 'home' : 'home-outline';
-              } else if (route.name === "File d'attente") {
-                iconName = focused ? 'list' : 'list-outline';
-              } else if (route.name === 'Contrôles') {
-                iconName = focused ? 'options' : 'options-outline';
-              } else if (route.name === 'Profil') {
-                iconName = focused ? 'person' : 'person-outline';
-              }
-
-              return <Ionicons name={iconName} size={size} color={color} />;
-            },
-            tabBarActiveTintColor: '#ff5500',
-            tabBarInactiveTintColor: '#999',
-            tabBarStyle: {
-              backgroundColor: '#111',
-              borderTopColor: '#333',
-            },
-            tabBarLabelStyle: {
-              fontSize: 12,
-            },
+        <Stack.Navigator
+          screenOptions={{
             headerStyle: {
               backgroundColor: '#111',
             },
@@ -232,12 +207,14 @@ function MainApp() {
             headerTitleStyle: {
               fontWeight: 'bold',
             },
-          })}
+            headerShown: false,
+          }}
         >
-          <Tab.Screen name="Accueil" component={HomeScreen} />
-          <Tab.Screen name="File d'attente" component={QueueScreen} />
-          <Tab.Screen name="Contrôles" component={ControlsScreen} />
-        </Tab.Navigator>
+          <Stack.Screen name="Accueil" component={HomeScreen} />
+          <Stack.Screen name="File d'attente" component={QueueScreen} />
+          <Stack.Screen name="Contrôles" component={ControlsScreen} />
+          <Stack.Screen name="Comment utiliser l'application" component={HowToScreen} />
+        </Stack.Navigator>
       </NavigationContainer>
       <Toast />
     </>

@@ -28,6 +28,7 @@ export const WebSocketProvider = ({ children }) => {
           console.log('Queue mise à jour avec', data.queue.length, 'titres');
         } else if (data.action === 'roomCreated') {
           setRoomCode(data.roomCode);
+          ws.send(JSON.stringify({ action: 'joinRoom', roomCode: data.roomCode, clientId }));
           // Sauvegarder le code de la salle dans AsyncStorage
           AsyncStorage.setItem('roomCode', data.roomCode);
           console.log('Code de la salle sauvegardé dans AsyncStorage:', data.roomCode);

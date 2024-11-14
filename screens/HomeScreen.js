@@ -1,44 +1,33 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View, SafeAreaView, StatusBar, Modal } from 'react-native';
-import Toast from 'react-native-toast-message';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, ImageBackground, StatusBar, Modal, TextInput } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialIcons } from '@expo/vector-icons';
+import { useFonts } from 'expo-font';
+import { BlurView } from 'expo-blur';
 import { useWebSocket } from '../contexts/WebSocketContext';
-import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
-import { Share } from 'react-native';
+import Toast from 'react-native-toast-message';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function HomeScreen({ navigation }) {
-  const [inputRoomCode, setInputRoomCode] = useState('');
-  const [roomLink, setRoomLink] = useState('');
   const { ws, roomCode, setRoomCode, clientId } = useWebSocket();
-  const [showInfoModal, setShowInfoModal] = useState(false);
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const [feedbackText, setFeedbackText] = useState('');
+  const [inputRoomCode, setInputRoomCode] = useState('');
+
+  const [fontsLoaded] = useFonts({
+    'Krub-Medium': require('../assets/fonts/Krub-Medium.ttf'),
+    'Krub-Bold': require('../assets/fonts/Krub-Bold.ttf'),
+  });
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [salonCode, setSalonCode] = useState('');
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   const createRoom = () => {
-    console.log('Tentative de création de salle');
-
-    if (!ws) {
-      console.error('WebSocket non défini');
-      Toast.show({
-        type: 'error',
-        text1: 'Erreur',
-        text2: 'Connexion WebSocket non établie.',
-      });
-      return;
-    }
-
-    if (ws.readyState !== WebSocket.OPEN) {
-      console.error('WebSocket non ouvert. État actuel:', ws.readyState);
-      Toast.show({
-        type: 'error',
-        text1: 'Erreur',
-        text2: 'La connexion WebSocket n\'est pas ouverte.',
-      });
-      return;
-    }
-
     try {
       ws.send(JSON.stringify({ action: 'createRoom', clientId }));
+      navigation.navigate('Comment utiliser l\'application')
     } catch (error) {
       console.error('Erreur lors de l\'envoi du message WebSocket:', error);
       Toast.show({
@@ -49,18 +38,8 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
-  const disconnectRoom = () => {
-    console.log('Tentative de déconnexion de la salle');
-    if (ws && ws.readyState === WebSocket.OPEN && clientId) {
-      ws.send(JSON.stringify({ action: 'leaveRoom', clientId }));
-      setRoomCode(null);
-    } else {
-      console.error('WebSocket non connecté, non prêt, ou clientId manquant');
-    }
-  };
-
-  const joinRoom = () => {
-    console.log('Tentative de rejoindre une salle');
+  const handleJoinSalon = () => {
+    // Logique pour rejoindre le salon avec le code
     if (ws && ws.readyState === WebSocket.OPEN && inputRoomCode && clientId) {
       ws.send(JSON.stringify({ action: 'joinRoom', roomCode: inputRoomCode, clientId }));
       setRoomCode(inputRoomCode);
@@ -72,397 +51,276 @@ export default function HomeScreen({ navigation }) {
         text2: 'Impossible de rejoindre la salle. Vérifiez votre connexion et le code.',
       });
     }
-  };
-
-  useEffect(() => {
-    if (ws && clientId) {
-      const handleMessage = (e) => {
-        const data = JSON.parse(e.data);
-        if (data.action === 'roomCreated') {
-          setRoomCode(data.roomCode);
-          setRoomLink(`https://pm.eliottb.dev/?c=${data.roomCode}`);
-          ws.send(JSON.stringify({ action: 'joinRoom', roomCode: data.roomCode, clientId }));
-          console.log('Rejoindre la salle automatiquement après création avec clientId:', clientId);
-        }
-      };
-
-      ws.addEventListener('message', handleMessage);
-
-      return () => {
-        ws.removeEventListener('message', handleMessage);
-      };
-    }
-  }, [ws, navigation, clientId]);
-
-  const copyToClipboard = async () => {
-    await Clipboard.setStringAsync(roomLink);
-    Toast.show({
-      type: 'success',
-      text1: 'Lien copié',
-      text2: 'Le lien a été copié dans le presse-papiers',
-    });
-  };
-
-  const shareLink = async () => {
-    try {
-      await Share.share({
-        message: `Rejoignez ma salle Party Mix ! ${roomLink}`,
-      });
-    } catch (error) {
-      console.error('Erreur lors du partage:', error.message);
-    }
-  };
-
-  const toggleInfoModal = () => {
-    setShowInfoModal(!showInfoModal);
-  };
-
-  const toggleFeedbackModal = () => {
-    setShowFeedbackModal(!showFeedbackModal);
-  };
-
-  const sendFeedback = async () => {
-    if (feedbackText.trim() === '') {
-      Toast.show({
-        type: 'error',
-        text1: 'Erreur',
-        text2: 'Veuillez entrer un feedback avant d\'envoyer',
-      });
-      return;
-    }
-
-    const webhookUrl = 'https://discord.com/api/webhooks/1285668873814806568/g-Di-TaW7U0x9_b1Irrw3145YJ9_Qnb9_0V45uRLS_XQj3H24mG0GaI_jTAUdAqiW6hA';
-
-    try {
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: `Nouveau feedback reçu :\n\n${feedbackText}`,
-        }),
-      });
-
-      if (response.ok) {
-        Toast.show({
-          type: 'success',
-          text1: 'Merci pour votre retour !',
-          text2: 'Votre feedback a été envoyé avec succès.',
-        });
-        setFeedbackText('');
-        toggleFeedbackModal();
-      } else {
-        throw new Error('Erreur lors de l\'envoi du feedback');
-      }
-    } catch (error) {
-      console.error('Erreur lors de l\'envoi du feedback:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Erreur',
-        text2: 'Impossible d\'envoyer le feedback. Veuillez réessayer.',
-      });
-    }
+    setModalVisible(false);
+    navigation.navigate("File d'attente");
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <View style={styles.content}>
-        <Text style={styles.title}>Party Mix</Text>
-        
-        {/* Bouton d'information */}
-        <TouchableOpacity style={styles.infoButton} onPress={toggleInfoModal}>
-          <Ionicons name="information-circle-outline" size={35} color="#ff5500" />
+    <ImageBackground
+      source={require('../assets/images/background.jpg')}
+      style={styles.background}
+    >
+      <LinearGradient
+        colors={['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.3)']}
+        style={styles.gradient}
+      >
+        <StatusBar barStyle="light-content" />
+        <View style={styles.container}>
+          <View style={styles.contentContainer}>
+            <Text style={styles.title}>Party Mix</Text>
+            <Text style={styles.subtitle}>
+              Connectez-vous, 
+              {'\n'}
+              ajoutez <Text style={{fontFamily: 'Krub-Bold'}}>vos sons,</Text>
+              {'\n'}
+              et laissez <Text style={{fontFamily: 'Krub-Bold'}}>la soirée</Text> commencer !
+            </Text>
+            <Text style={styles.description}>
+            La playlist de la soirée, créée par vous tous.
+            </Text>
+            <TouchableOpacity
+              onPress={() => setModalVisible(true)}
+            >
+              <LinearGradient
+                colors={['#691587', '#9D39C0']}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 0}}
+                style={[styles.button, styles.joinButton]}
+              >
+                <Text style={styles.buttonText}>REJOINDRE UN SALON</Text>
+                <MaterialIcons name="arrow-forward" size={24} color="white" />
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.createButton]}
+              onPress={() => createRoom()}
+            >
+              <Text style={styles.buttonTextCréer}>CRÉER VOTRE SALON</Text>
+              <MaterialIcons name="arrow-forward" size={24} color="black" />
+            </TouchableOpacity>
+
+          </View>
+        </View>
+        <TouchableOpacity style={styles.termsButton}>
+          <Text style={styles.termsText}>Conditions générales d'utilisations</Text>
         </TouchableOpacity>
-
-        {roomCode ? (
-          <View style={styles.roomCodeContainer}>
-            <Text style={styles.roomCodeLabel}>Code de la salle :</Text>
-            <Text style={styles.roomCode}>{roomCode}</Text>
-            <TouchableOpacity style={styles.button} onPress={disconnectRoom}>
-              <Ionicons name="log-out-outline" size={24} color="white" />
-              <Text style={styles.buttonText}>Déconnecter</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <TouchableOpacity style={styles.button} onPress={createRoom}>
-            <Ionicons name="add-circle-outline" size={24} color="white" />
-            <Text style={styles.buttonText}>Créer une salle</Text>
-          </TouchableOpacity>
-        )}
-        {!roomCode && (
-          <View style={styles.joinContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Entrez le code de la salle"
-              placeholderTextColor="#999"
-              value={inputRoomCode}
-              onChangeText={setInputRoomCode}
-            />
-            <TouchableOpacity style={styles.button} onPress={joinRoom}>
-              <Ionicons name="enter-outline" size={24} color="white" />
-              <Text style={styles.buttonText}>Rejoindre</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-        {roomCode && roomLink && ( // Affichage du lien et du bouton de partage
-          <View style={styles.linkContainer}>
-            <Text style={styles.linkLabel}>Lien de la salle :</Text>
-            <TouchableOpacity onPress={copyToClipboard}>
-              <Text style={styles.roomLink}>{roomLink}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.shareButton} onPress={shareLink}>
-              <Ionicons name="share-outline" size={24} color="white" />
-              <Text style={styles.buttonText}>Partager</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-        
-        {/* Bouton de feedback */}
-        <TouchableOpacity style={styles.feedbackButton} onPress={toggleFeedbackModal}>
-          <Ionicons name="chatbox-ellipses-outline" size={24} color="#ff5500" />
-          <Text style={styles.feedbackButtonText}>Feedback</Text>
-        </TouchableOpacity>
-
-        {/* Modal d'information */}
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={showInfoModal}
-          onRequestClose={toggleInfoModal}
-        >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>À propos de Party Mix</Text>
-              <Text style={styles.modalText}>
-                Party Mix est une application de musique collaborative pour vos soirées !{"\n\n"}
-                Elle permet à tous les participants de contribuer à la playlist et de voter pour passer à la chanson suivante.{"\n\n\n"}
-                Comment utiliser Party Mix :{"\n\n"}
-                1. Créez une salle et partagez le code.{"\n"}
-                2. Affichez le lien sur un PC ou une TV pour jouer la musique.{"\n"}
-                 3. Tous les participants doivent télécharger l'app et rejoindre avec le code.{"\n"}
-                4. Envoyez des musiques et votez pour passer à la suivante.
-              </Text>
-              <TouchableOpacity style={styles.closeButton} onPress={toggleInfoModal}>
-                <Text style={styles.closeButtonText}>Fermer</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Modal de feedback */}
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={showFeedbackModal}
-          onRequestClose={toggleFeedbackModal}
-        >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Envoyez-nous votre feedback</Text>
+      </LinearGradient>
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <BlurView intensity={15} style={styles.blurView}>
+          <View style={styles.centeredView}>
+            <View style={styles.modalView}>
+              <Text style={styles.modalTitle}>Rejoindre un salon</Text>
+              <Text style={styles.modalSubtitle}>Entrez le code du salon à rejoindre</Text>
               <TextInput
-                style={styles.feedbackInput}
-                multiline
-                numberOfLines={4}
-                placeholder="Partagez vos suggestions ou signalez un bug..."
-                placeholderTextColor="#999"
-                value={feedbackText}
-                onChangeText={setFeedbackText}
+                style={styles.input}
+                onChangeText={setInputRoomCode}
+                value={inputRoomCode}
+                placeholder='Code'
+                placeholderTextColor="#A0A0A0"
+                keyboardType="numeric"
+                maxLength={4}
+                autoFocus={true}
               />
-              <View style={styles.modalButtonsContainer}>
-                <TouchableOpacity style={styles.modalButton} onPress={toggleFeedbackModal}>
-                  <Text style={styles.modalButtonText}>Annuler</Text>
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.refuserButton]}
+                  onPress={() => setModalVisible(false)}
+                >
+                  <Text style={styles.refuserButtonText}>REFUSER</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.modalButton, styles.sendButton]} onPress={sendFeedback}>
-                  <Text style={styles.modalButtonText}>Envoyer</Text>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.accepterButton]}
+                  onPress={handleJoinSalon}
+                >
+                  <Text style={styles.accepterButtonText}>ACCEPTER</Text>
+                  <MaterialIcons name="arrow-forward" size={24} color="white" />
                 </TouchableOpacity>
               </View>
             </View>
           </View>
-        </Modal>
-      </View>
-    </SafeAreaView>
+        </BlurView>
+      </Modal>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  gradient: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#111', // Fond sombre de SoundCloud
-  },
-  content: {
-    flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
+  },
+  contentContainer: {
+    alignItems: 'flex-start',
+    width: '100%',
+    marginTop: '50%',
   },
   title: {
     fontSize: 48,
     fontWeight: 'bold',
-    color: '#ff5500', // Orange SoundCloud
-    marginBottom: 40,
-  },
-  roomCodeContainer: {
-    backgroundColor: '#222',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#ff5500',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  roomCodeLabel: {
-    color: '#ccc',
-    fontSize: 16,
-    marginBottom: 5,
-  },
-  roomCode: {
-    color: '#ff5500',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  joinContainer: {
-    width: '100%',
-    marginBottom: 20,
-  },
-  input: {
-    backgroundColor: '#222',
     color: 'white',
-    padding: 15,
-    borderRadius: 10,
+    marginBottom: 50,
+    fontFamily: 'Krub-Bold',
+  },
+  subtitle: {
+    fontSize: 23,
+    color: 'white',
+    marginBottom: 15,
+    fontFamily: 'Krub-Medium',
+  },
+  description: {
     fontSize: 16,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#333',
+    color: 'white',
+    marginBottom: 40,
+    fontFamily: 'Krub-Medium',
   },
   button: {
-    backgroundColor: '#ff5500',
+    padding: 15,
+    borderRadius: 25,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
+    marginBottom: 15,
+  },
+  joinButton: {
+    // Le style de fond est maintenant géré par le LinearGradient
+  },
+  createButton: {
+    backgroundColor: 'white',
+    borderColor: 'white',
+    textColor: 'black',
   },
   buttonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginLeft: 10,
+    marginRight: 10,
+    fontFamily: 'Krub-Bold',
   },
-  linkContainer: {
+  buttonTextCréer: {
+    color: 'black',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginRight: 10,
+    fontFamily: 'Krub-Bold',
+  },
+  termsButton: {
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-    padding: 10,
-    backgroundColor: '#222',
-    borderRadius: 10,
+    justifyContent: 'center',
+    marginBottom: 50,
   },
-  roomLink: {
-    color: '#ff5500',
-    fontSize: 18,
+  termsText: {
+    color: 'white',
     textDecorationLine: 'underline',
-    marginBottom: 10,
+    color: '#691587',
+    fontFamily: 'Krub-Medium',
   },
-  shareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ff5500',
-    padding: 10,
-    borderRadius: 5,
-    marginLeft: 10,
-  },
-  infoButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    padding: 10,
-  },
-  modalContainer: {
+  centeredView: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
-    backgroundColor: '#222',
-    borderRadius: 10,
-    padding: 20,
-    width: '80%',
-    alignItems: 'center',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#ff5500',
-    marginBottom: 10,
-  },
-  modalText: {
-    color: '#fff',
-    fontSize: 16,
-    marginBottom: 20,
-    textAlign: 'left',
-  },
-  closeButton: {
-    backgroundColor: '#ff5500',
-    padding: 10,
-    borderRadius: 5,
-  },
-  closeButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  linkLabel: {
-    color: '#ccc',
-    fontSize: 20,
-    marginBottom: 5,
-  },
-  feedbackButton: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#222',
-    padding: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#ff5500',
-  },
-  feedbackButtonText: {
-    color: '#ff5500',
-    marginLeft: 5,
-    fontWeight: 'bold',
-  },
-  feedbackInput: {
-    backgroundColor: '#333',
-    color: 'white',
-    padding: 10,
-    borderRadius: 5,
-    fontSize: 16,
-    marginBottom: 20,
-    textAlignVertical: 'top',
     width: '100%',
   },
-  modalButtonsContainer: {
+  modalView: {
+    width: '90%',
+    backgroundColor: '#2C0E44',
+    borderRadius: 45,
+    padding: 35,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 15,
+    fontFamily: 'Krub-Bold',
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    color: 'white',
+    marginBottom: 20,
+    fontFamily: 'Krub-Medium',
+    textAlign: 'center',
+  },
+  input: {
+    width: '50%',
+    height: 60,
+    backgroundColor: 'white',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    marginBottom: 20,
+    fontFamily: 'Krub-Medium',
+    color: 'black',
+    textAlign: 'center',
+    fontSize: 20,
+  },
+  buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
+    fontFamily: 'Krub-Medium',
   },
   modalButton: {
     padding: 10,
-    borderRadius: 5,
-    width: '45%',
+    borderRadius: 25,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  refuserButton: {
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: 'white',
+    textColor: 'black',
+  },
+  accepterButton: {
+    backgroundColor: '#691587',
+    borderWidth: 2,
+    borderColor: '#691587',
+    textColor: 'white',
+  },
+  refuserButtonText: {
+    color: 'black',
+    fontSize: 16,
+    fontWeight: 'bold',
+    fontFamily: 'Krub-Bold',
+  },
+  accepterButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginRight: 10,
+    fontFamily: 'Krub-Bold',
+  },
+  blurView: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  sendButton: {
-    backgroundColor: '#ff5500',
-  },
-  modalButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+  howToText: {
+    color: 'white',
+    textDecorationLine: 'underline',
+    fontFamily: 'Krub-Medium',
   },
 });
