@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ImageBackground, StatusBar, Modal, TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { BlurView } from 'expo-blur';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Actions } from '../constants/websocket';
 
 export default function HomeScreen({ navigation }) {
   const { ws, roomCode, setRoomCode, clientId } = useWebSocket();
@@ -20,39 +21,47 @@ export default function HomeScreen({ navigation }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [salonCode, setSalonCode] = useState('');
 
+  useEffect(() => {
+    if (roomCode === null) {
+      navigation.navigate('Accueil');
+    }
+  }, [roomCode, navigation]);
+
   if (!fontsLoaded) {
     return null;
   }
 
   const createRoom = () => {
     try {
-      ws.send(JSON.stringify({ action: 'createRoom', clientId }));
-      navigation.navigate('Comment utiliser l\'application')
+      ws.send(JSON.stringify({ 
+        action: Actions.CREATE_ROOM 
+      }));
+      navigation.navigate('Comment utiliser l\'application');
     } catch (error) {
       console.error('Erreur lors de l\'envoi du message WebSocket:', error);
       Toast.show({
         type: 'error',
         text1: 'Erreur',
-        text2: 'Impossible d\'envoyer la demande de création de salle.',
+        text2: 'Impossible de créer le salon.',
       });
     }
   };
 
   const handleJoinSalon = () => {
-    // Logique pour rejoindre le salon avec le code
-    if (ws && ws.readyState === WebSocket.OPEN && inputRoomCode && clientId) {
-      ws.send(JSON.stringify({ action: 'joinRoom', roomCode: inputRoomCode, clientId }));
-      setRoomCode(inputRoomCode);
+    if (ws && ws.readyState === WebSocket.OPEN && inputRoomCode) {
+      ws.send(JSON.stringify({ 
+        action: Actions.JOIN_ROOM, 
+        roomCode: inputRoomCode 
+      }));
+      setModalVisible(false);
     } else {
-      console.error('WebSocket non connecté, code de salle manquant, ou clientId manquant');
+      console.error('WebSocket non connecté ou code de salle manquant');
       Toast.show({
         type: 'error',
         text1: 'Erreur',
-        text2: 'Impossible de rejoindre la salle. Vérifiez votre connexion et le code.',
+        text2: 'Impossible de rejoindre le salon. Vérifiez votre connexion et le code.',
       });
     }
-    setModalVisible(false);
-    navigation.navigate("File d'attente");
   };
 
   return (

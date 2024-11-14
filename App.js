@@ -53,19 +53,13 @@ function MainApp() {
       return;
     }
 
-    if (!clientId) {
-      console.log('ClientId non disponible, attente avant la connexion WebSocket');
-      return;
-    }
-
-    console.log('Tentative de connexion WebSocket avec clientId:', clientId);
+    console.log('Tentative de connexion WebSocket');
     const newWs = new WebSocket('wss://eliottb.dev:8080');
     
     newWs.onopen = async () => {
       console.log('WebSocket connecté');
       setWs(newWs);
       wsRef.current = newWs;
-      await sendClientInfo();
       rejoinRoom();
       Toast.show({
         type: 'success',
@@ -105,20 +99,6 @@ function MainApp() {
     };
   };
 
-  const sendClientInfo = async () => {
-    if (!clientId) {
-      console.log('ClientId non disponible, impossible d\'envoyer les informations client');
-      return;
-    }
-
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        action: 'clientInfo',
-        clientId: clientId
-      }));
-    }
-  };
-
   const rejoinRoom = async () => {
     try {
       const savedRoom = await AsyncStorage.getItem('roomCode');
@@ -127,7 +107,7 @@ function MainApp() {
         wsRef.current.send(JSON.stringify({ 
           action: 'joinRoom', 
           roomId: savedRoom,
-          clientId: clientId 
+          clientId: clientId
         }));
       }
     } catch (error) {
@@ -141,12 +121,9 @@ function MainApp() {
   };
 
   useEffect(() => {
-    let heartbeatCleanup;
-
     const setupWebSocket = async () => {
       if (isClientIdReady) {
         await connectWebSocket();
-        heartbeatCleanup = startHeartbeat();
       }
     };
 
@@ -159,7 +136,6 @@ function MainApp() {
           console.log('WebSocket non connecté, tentative de reconnexion');
           if (isClientIdReady) {
             await connectWebSocket();
-            heartbeatCleanup = startHeartbeat();
           }
         } else {
           console.log('WebSocket toujours connecté');
@@ -175,25 +151,9 @@ function MainApp() {
       if (wsRef.current) {
         wsRef.current.close();
       }
-      if (heartbeatCleanup) {
-        heartbeatCleanup();
-      }
       appStateSubscription.remove();
     };
   }, [isClientIdReady]);
-
-  const startHeartbeat = () => {
-    const heartbeatInterval = setInterval(() => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ type: 'heartbeat' }));
-      } else {
-        clearInterval(heartbeatInterval);
-        connectWebSocket();
-      }
-    }, 30000); // Envoie un heartbeat toutes les 30 secondes
-
-    return () => clearInterval(heartbeatInterval);
-  };
 
   return (
     <>

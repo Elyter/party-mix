@@ -8,6 +8,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import { useNavigation } from '@react-navigation/native';
+import { Actions } from '../constants/websocket';
+import { Ionicons } from '@expo/vector-icons';
 
 const QueueScreen = () => {
   const navigation = useNavigation();
@@ -19,7 +21,7 @@ const QueueScreen = () => {
   const cardsOpacity = useRef(new Animated.Value(1)).current;
   const [refreshing, setRefreshing] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
-  const { ws, roomCode, votes, totalClients, clientId, queue, setQueue } = useWebSocket();
+  const { ws, roomCode, votes, totalClients, clientId, queue, setQueue, currentTrack } = useWebSocket();
   const arrowAnim = useRef(new Animated.Value(0)).current;
   const arrowOpacity = useRef(new Animated.Value(1)).current;
 
@@ -41,8 +43,11 @@ const QueueScreen = () => {
   }, []);
 
   const sendSongUrl = async () => {
-    if (ws && ws.readyState === WebSocket.OPEN && roomCode && clientId) {
-      ws.send(JSON.stringify({ action: 'sendSong', roomCode, soundcloudUrl: songUrl, clientId }));
+    if (ws && ws.readyState === WebSocket.OPEN && roomCode) {
+      ws.send(JSON.stringify({ 
+        action: Actions.SEND_SONG, 
+        url: songUrl 
+      }));
       setSongUrl('');
       setModalVisible(false);
     }
@@ -135,6 +140,10 @@ const QueueScreen = () => {
   };
 
   const parseTrackDetails = (url) => {
+    if (!url || typeof url !== 'string') {
+      return { url: '', title: 'Titre inconnu', artist: 'Artiste inconnu' };
+    }
+
     const cleanUrl = url.split('?')[0];
     const regex = /soundcloud\.com\/([^/]+)\/([^/]+)/;
     const match = cleanUrl.match(regex);
@@ -153,12 +162,14 @@ const QueueScreen = () => {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    if (ws && ws.readyState === WebSocket.OPEN && roomCode && clientId) {
-      ws.send(JSON.stringify({ action: 'refreshQueue', roomCode, clientId }));
+    if (ws && ws.readyState === WebSocket.OPEN && roomCode) {
+      ws.send(JSON.stringify({ 
+        action: 'refreshQueue',
+        roomId: roomCode 
+      }));
     }
-    console.log('onRefresh');
-    setRefreshing(false);
-  }, [ws, roomCode, clientId]);
+    setTimeout(() => setRefreshing(false), 1000);
+  }, [ws, roomCode]);
 
   const [fontsLoaded] = useFonts({
     'Krub-Medium': require('../assets/fonts/Krub-Medium.ttf'),
@@ -205,7 +216,10 @@ const QueueScreen = () => {
 
   const handleVote = () => {
     if (ws && ws.readyState === WebSocket.OPEN && roomCode) {
-      ws.send(JSON.stringify({ action: 'vote', roomCode, vote: !hasVoted, clientId }));
+      ws.send(JSON.stringify({ 
+        action: Actions.VOTE, 
+        value: !hasVoted 
+      }));
     }
     setHasVoted(!hasVoted);
     closeModal();
@@ -214,6 +228,91 @@ const QueueScreen = () => {
   const handleQuit = () => {
     navigation.navigate('Accueil');
   };
+
+  const renderItem = ({ item }) => {
+    console.log('Item à rendre:', item);
+
+    if (!item || typeof item.url !== 'string') {
+      console.warn('Item invalide:', item);
+      return null;
+    }
+
+    const title = item.url
+      .split('/')
+      .pop()
+      .replace(/-/g, ' ')
+      .replace(/\b\w/g, l => l.toUpperCase());
+
+    return (
+      <View style={styles.songItem}>
+        <Text style={styles.songTitle}>{title}</Text>
+        <Text style={styles.songInfo}>
+          {item.status === 'pending' ? 'En attente' : 'En cours'}
+          {item.addedAt && ` • Ajouté ${formatTimestamp(item.addedAt)}`}
+        </Text>
+      </View>
+    );
+  };
+
+  // Fonction pour formater le timestamp
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return '';
+    
+    const now = Date.now();
+    const diff = now - timestamp;
+    
+    // Moins d'une minute
+    if (diff < 60000) {
+      return 'à l\'instant';
+    }
+    // Moins d'une heure
+    else if (diff < 3600000) {
+      const minutes = Math.floor(diff / 60000);
+      return `il y a ${minutes} minute${minutes > 1 ? 's' : ''}`;
+    }
+    // Moins d'un jour
+    else if (diff < 86400000) {
+      const hours = Math.floor(diff / 3600000);
+      return `il y a ${hours} heure${hours > 1 ? 's' : ''}`;
+    }
+    // Plus d'un jour
+    else {
+      const days = Math.floor(diff / 86400000);
+      return `il y a ${days} jour${days > 1 ? 's' : ''}`;
+    }
+  };
+
+  const renderQueueItem = ({ item, index }) => {
+    // Vérification de sécurité pour l'URL
+    if (!item?.url) return null;
+    
+    const { title, artist } = parseTrackDetails(item.url);
+
+    return (
+      <View style={styles.queueItem}>
+        <View style={styles.queueItemInfo}>
+          <Text style={styles.queueItemTitle}>{title}</Text>
+          <Text style={styles.queueItemArtist}>{artist}</Text>
+          <Text style={styles.songInfo}>
+            En attente • {formatTimestamp(item.addedAt)}
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={styles.linkButton}
+          onPress={() => openSoundCloudLink(item.url)}
+        >
+          <Ionicons name="play-circle-outline" size={24} color="#F0A56C" />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  // Ajouter cet useEffect pour réinitialiser hasVoted quand votes est à 0
+  useEffect(() => {
+    if (votes === 0) {
+      setHasVoted(false);
+    }
+  }, [votes]);
 
   if (!fontsLoaded) {
     return null;
@@ -313,59 +412,38 @@ const QueueScreen = () => {
       <View style={styles.queueContainer}>
         <Text style={styles.queueTitle}>File d'attente</Text>
         {queue.length > 0 ? (
-          <Text style={styles.queueSubtitle}>{queue.length - 1} musiques dans la file</Text>
+          <Text style={styles.queueSubtitle}>{queue.length} musiques dans la file</Text>
         ) : (
           <Text style={styles.queueSubtitle}>Aucune musique dans la file</Text>
         )}
         
-        {queue.length > 0 ? (
+        {queue.length > 0 && (
           <View style={styles.nowPlayingContainer}>
             <View style={styles.queueItem}>
               <View style={styles.queueItemInfo}>
                 <Text style={styles.queueItemTitle}>
-                  {parseTrackDetails(queue[0]).title}
+                  {parseTrackDetails(queue[0]?.url).title}
                 </Text>
-                <Text style={styles.queueItemArtist}>{parseTrackDetails(queue[0]).artist}</Text>
+                <Text style={styles.queueItemArtist}>
+                  {parseTrackDetails(queue[0]?.url).artist}
+                </Text>
                 <Text style={styles.nowPlayingLabel}> ▶ Lecture en cours</Text>
               </View>
               <TouchableOpacity
                 style={styles.linkButton}
-                onPress={() => openSoundCloudLink(queue[0])}
+                onPress={() => queue[0]?.url && openSoundCloudLink(queue[0].url)}
               >
                 <Icon name="play-circle-outline" size={28} color="#F0A56C" />
               </TouchableOpacity>
             </View>
           </View>
-        ) : (
-          <View style={styles.emptyQueueContainer}>
-            <Text style={styles.emptyQueueText}>
-              Cliquez sur le bouton + en bas à droite pour ajouter des musiques
-            </Text>
-            <Icon name="arrow-downward" size={100} color="#F0A56C" style={styles.arrowIcon} />
-          </View>
         )}
         
         <FlatList
           data={queue.slice(1)}
-          renderItem={({ item, index }) => {
-            const { title, artist } = parseTrackDetails(item);
-            return (
-              <View style={styles.queueItem}>
-                <Text style={styles.queueItemNumber}>{index + 1}</Text>
-                <View style={styles.queueItemInfo}>
-                  <Text style={styles.queueItemTitle}>{title}</Text>
-                  <Text style={styles.queueItemArtist}>{artist}</Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.linkButton}
-                  onPress={() => openSoundCloudLink(item)}
-                >
-                  <Icon name="play-circle-outline" size={28} color="#F0A56C" />
-                </TouchableOpacity>
-              </View>
-            );
-          }}
-          keyExtractor={(item, index) => index.toString()}
+          renderItem={renderQueueItem}
+          keyExtractor={(item, index) => `${item.addedAt}-${index}`}
+          style={styles.queueList}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -444,7 +522,7 @@ const QueueScreen = () => {
                     onPress={handleVote}
                   >
                     <Text style={styles.accepterButtonText}>
-                      {votes === 0 ? "VOTER" : hasVoted ? "ANNULER" : "VOTER"}
+                      {hasVoted ? "ANNULER" : "VOTER"}
                     </Text>
                     <MaterialIcons name="arrow-forward" size={24} color="white" />
                   </TouchableOpacity>
@@ -749,6 +827,38 @@ const styles = StyleSheet.create({
     top: '28%',
     zIndex: 10,
   },
+  songItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  songItemContent: {
+    flex: 1,
+  },
+  songTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Krub-Bold',
+    marginBottom: 4,
+  },
+  songArtist: {
+    color: '#ccc',
+    fontSize: 14,
+    fontFamily: 'Krub-Medium',
+    marginBottom: 4,
+  },
+  songInfo: {
+    color: '#F0A56C',
+    fontSize: 12,
+    fontFamily: 'Krub-Medium',
+  },
+  addedAtText: {
+    color: '#666',
+    fontSize: 12,
+    marginTop: 2,
+  },
 });
-
 export default QueueScreen;
