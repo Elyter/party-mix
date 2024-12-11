@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MessageTypes, Actions, createMessage } from '../constants/websocket';
@@ -12,6 +12,61 @@ export const WebSocketProvider = ({ children }) => {
   const [totalClients, setTotalClients] = useState(0);
   const [clientId, setClientId] = useState(null);
   const [currentTrack, setCurrentTrack] = useState(null);
+  const reconnectTimeoutRef = useRef(null);
+  const reconnectAttemptsRef = useRef(0);
+  const MAX_RECONNECT_ATTEMPTS = 5;
+  const RECONNECT_DELAY = 2000;
+
+  const connectWebSocket = async () => {
+    if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur de connexion',
+        text2: 'Impossible de se connecter au serveur après plusieurs tentatives',
+      });
+      return;
+    }
+
+    try {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        console.log('WebSocket déjà connecté');
+        return;
+      }
+
+      const newWs = new WebSocket('wss://eliottb.dev:8080');
+      
+      newWs.onerror = (error) => {
+        console.error('Erreur WebSocket:', error);
+        Toast.show({
+          type: 'error',
+          text1: 'Erreur de connexion',
+          text2: 'La connexion au serveur a échoué',
+        });
+      };
+
+      newWs.onclose = () => {
+        reconnectAttemptsRef.current += 1;
+        reconnectTimeoutRef.current = setTimeout(connectWebSocket, RECONNECT_DELAY);
+      };
+
+      setWs(newWs);
+    } catch (error) {
+      console.error('Erreur lors de la connexion:', error);
+    }
+  };
+
+  useEffect(() => {
+    connectWebSocket();
+
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (ws) {
+        ws.close();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (ws) {
@@ -60,7 +115,8 @@ export const WebSocketProvider = ({ children }) => {
             break;
 
           case MessageTypes.SONG_ADDED:
-            setQueue(prevQueue => [...prevQueue, data.track]);
+            // Supprimer cette partie car la queue est déjà mise à jour par queueUpdate
+            // setQueue(prevQueue => [...prevQueue, data.track]);
             break;
 
           case MessageTypes.VOTE_UPDATE:
@@ -72,8 +128,7 @@ export const WebSocketProvider = ({ children }) => {
             Toast.show({
               type: 'error',
               text1: 'Erreur',
-              text2: data.error || 'Une erreur est survenue',
-              position: 'bottom',
+              text2: data.message || data.error || 'Une erreur est survenue',
               visibilityTime: 3000,
             });
             break;

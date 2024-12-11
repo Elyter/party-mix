@@ -2,7 +2,7 @@
   "expo": {
     "name": "party-mix",
     "slug": "party-mix",
-    "version": "1.1.0",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -14,7 +14,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "dev.eliottb.partymix",
-      "buildNumber": "1.1.0"
+      "buildNumber": "2.0.0",
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"],
+        "NSMicrophoneUsageDescription": "Cette application n'utilise pas le microphone"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -22,8 +26,14 @@
         "backgroundColor": "#111"
       },
       "package": "com.eliottdev.partymix",
-      "versionCode": 3,
-      "permissions": ["INTERNET", "ACCESS_NETWORK_STATE"]
+      "versionCode": 4,
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "VIBRATE",
+        "WAKE_LOCK"
+      ],
+      "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
       "favicon": "./assets/favicon.png"

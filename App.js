@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { WebSocketProvider, useWebSocket } from './contexts/WebSocketContext';
 import Toast from 'react-native-toast-message';
@@ -16,12 +16,17 @@ import HowToScreen from './screens/HowToScreen';
 
 const Stack = createStackNavigator();
 
+// Ajouter cette ligne après les imports
+const navigationRef = createNavigationContainerRef();
+
 function MainApp() {
   const { ws, setWs, clientId, setClientId } = useWebSocket();
   const wsRef = useRef(null);
   const appStateRef = useRef(AppState.currentState);
   const [currentRoom, setCurrentRoom] = useState(null);
   const [isClientIdReady, setIsClientIdReady] = useState(false);
+
+  // Supprimer la ligne const navigationRef = useRef(null);
 
   useEffect(() => {
     const initClientId = async () => {
@@ -33,9 +38,23 @@ function MainApp() {
         }
         setClientId(id);
         setIsClientIdReady(true);
-        console.log('ClientId initialisé dans App.js:', id);
+
+        // Tenter de récupérer et rejoindre la dernière room
+        const lastRoom = await AsyncStorage.getItem('roomCode');
+        if (lastRoom && ws?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({
+            action: 'joinRoom',
+            roomId: lastRoom,
+            clientId: id
+          }));
+        }
       } catch (error) {
-        console.error('Erreur lors de l\'initialisation du clientId:', error);
+        console.error('Erreur lors de l\'initialisation:', error);
+        Toast.show({
+          type: 'error',
+          text1: 'Erreur',
+          text2: 'Impossible d\'initialiser l\'application',
+        });
       }
     };
     initClientId();
@@ -109,6 +128,10 @@ function MainApp() {
           roomId: savedRoom,
           clientId: clientId
         }));
+        // Utiliser la nouvelle référence globale
+        if (navigationRef.isReady()) {
+          navigationRef.navigate("File d'attente");
+        }
       }
     } catch (error) {
       console.error('Erreur lors de la récupération de la room:', error);
@@ -130,16 +153,21 @@ function MainApp() {
     setupWebSocket();
 
     const handleAppStateChange = async (nextAppState) => {
-      if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
-        console.log('App réactivée, vérification de la connexion WebSocket');
-        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-          console.log('WebSocket non connecté, tentative de reconnexion');
-          if (isClientIdReady) {
-            await connectWebSocket();
+      if (
+        appStateRef.current.match(/inactive|background/) && 
+        nextAppState === 'active'
+      ) {
+        // Vérifier l'état de la connexion au retour de l'app
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          await connectWebSocket();
+          const savedRoom = await AsyncStorage.getItem('roomCode');
+          if (savedRoom && clientId) {
+            wsRef.current?.send(JSON.stringify({
+              action: 'joinRoom',
+              roomId: savedRoom,
+              clientId
+            }));
           }
-        } else {
-          console.log('WebSocket toujours connecté');
-          await rejoinRoom();
         }
       }
       appStateRef.current = nextAppState;
@@ -157,7 +185,7 @@ function MainApp() {
 
   return (
     <>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         <Stack.Navigator
           screenOptions={{
             headerStyle: {

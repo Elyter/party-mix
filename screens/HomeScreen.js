@@ -54,6 +54,7 @@ export default function HomeScreen({ navigation }) {
         roomCode: inputRoomCode 
       }));
       setModalVisible(false);
+      navigation.navigate("File d'attente");
     } else {
       console.error('WebSocket non connecté ou code de salle manquant');
       Toast.show({
