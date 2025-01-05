@@ -46,8 +46,8 @@ Ce projet est sous licence MIT - voir le fichier [LICENSE.md](LICENSE.md) pour p
 
 ## 📱 Captures d'écran
 
-![](https://eliottb.dev/partymix/images/pm1.png)
-![](https://eliottb.dev/partymix/images/pm3.png)
+<img alt="Disponible sur Google Play" src="https://eliottb.dev/partymix/images/pm1.png" height="55"/>
+<img alt="Disponible sur Google Play" src="https://eliottb.dev/partymix/images/pm3.png" height="55"/>
 
 ## 👨‍💻 Développé par
 
