@@ -2,8 +2,12 @@
 
 Party Mix est une application mobile qui révolutionne l'écoute musicale en groupe ! Créez un salon, partagez le code avec vos amis, et écoutez de la musique ensemble, où que vous soyez.
 
-[![Disponible sur Play Store](https://play.google.com/intl/en_us/badges/static/images/badges/fr_badge_web_generic.png)](https://play.google.com/store/apps/details?id=com.eliottdev.partymix)
-[![Disponible sur App Store](https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/fr-fr?size=250x83)](https://apps.apple.com/fr/app/party-mix/id123456789)
+<a href="https://play.google.com/store/apps/details?id=com.eliottdev.partymix">
+  <img alt="Disponible sur Google Play" src="https://play.google.com/intl/en_us/badges/static/images/badges/fr_badge_web_generic.png" height="55"/>
+</a>
+<a href="https://apps.apple.com/fr/app/party-mix/id123456789">
+  <img alt="Télécharger sur l'App Store" src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" height="55"/>
+</a>
 
 ## ✨ Fonctionnalités
 
