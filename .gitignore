@@ -33,3 +33,6 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+party-mix-435919-558c117e4567.json
+eas.json

@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "party-mix",
+    "name": "Party Mix",
     "slug": "party-mix",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -26,7 +26,7 @@
         "backgroundColor": "#111"
       },
       "package": "com.eliottdev.partymix",
-      "versionCode": 4,
+      "versionCode": 5,
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",

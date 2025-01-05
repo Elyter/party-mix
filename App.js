@@ -11,7 +11,6 @@ enableScreens();
 
 import HomeScreen from './screens/HomeScreen';
 import QueueScreen from './screens/QueueScreen';
-import ControlsScreen from './screens/ControlsScreen';
 import HowToScreen from './screens/HowToScreen';
 
 const Stack = createStackNavigator();
@@ -200,7 +199,6 @@ function MainApp() {
         >
           <Stack.Screen name="Accueil" component={HomeScreen} />
           <Stack.Screen name="File d'attente" component={QueueScreen} />
-          <Stack.Screen name="Contrôles" component={ControlsScreen} />
           <Stack.Screen name="Comment utiliser l'application" component={HowToScreen} />
         </Stack.Navigator>
       </NavigationContainer>

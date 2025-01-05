@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Animated, PanResponder, Dimensions, FlatList, Linking, RefreshControl, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Animated, PanResponder, Dimensions, FlatList, Linking, RefreshControl, Share, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useFonts } from 'expo-font';
@@ -314,24 +314,17 @@ const QueueScreen = () => {
     }
   }, [votes]);
 
-  if (!fontsLoaded) {
-    return null;
-  }
-
-  return (
-    <LinearGradient colors={['#4c0080', '#2d004d']} style={styles.container}>
-      <TouchableOpacity style={styles.quitButton} onPress={handleQuit}>
-        <Icon name="arrow-back" size={34} color="#fff" />
-      </TouchableOpacity>
-
-      <Animated.View
-        style={[styles.cardsContainer, { opacity: cardsOpacity }]}
-        {...panResponder.panHandlers}
-      >
+  // Rendu conditionnel du système de vote
+  const renderVoteSystem = () => {
+    if (Platform.OS === 'ios') {
+      // Système de cartes existant pour iOS
+      return (
         <Animated.View
-          style={[
-            styles.card,
-            {
+          style={[styles.cardsContainer, { opacity: cardsOpacity }]}
+          {...panResponder.panHandlers}
+        >
+          <Animated.View
+            style={[styles.card, {
               backgroundColor: '#3A0958',
               transform: [
                 {
@@ -347,15 +340,12 @@ const QueueScreen = () => {
                 inputRange: [-1, 0, 1],
                 outputRange: [0, 1, 1],
               }),
-            },
-          ]}
-        >
-          <Text style={styles.cardText}>Carte 2</Text>
-        </Animated.View>
-        <Animated.View
-          style={[
-            styles.card2,
-            {
+            }]}
+          >
+            <Text style={styles.cardText}>Carte 2</Text>
+          </Animated.View>
+          <Animated.View
+            style={[styles.card2, {
               backgroundColor: '#2d004d',
               transform: [
                 {
@@ -371,27 +361,55 @@ const QueueScreen = () => {
                 inputRange: [-1, 0, 1],
                 outputRange: [0, 1, 1],
               }),
-            },
-          ]}
-        >
-          <Text style={styles.cardText}>Carte 1</Text>
-        </Animated.View>
+            }]}
+          >
+            <Text style={styles.cardText}>Carte 1</Text>
+          </Animated.View>
 
-        <Animated.View style={[
-          styles.arrowContainer,
-          {
-            transform: [{
-              translateX: arrowAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, -20]
-              })
-            }],
-            opacity: arrowOpacity
-          }
-        ]}>
-          <Icon name="chevron-left" size={40} color="#F0A56C" />
+          <Animated.View style={[
+            styles.arrowContainer,
+            {
+              transform: [{
+                translateX: arrowAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, -20]
+                })
+              }],
+              opacity: arrowOpacity
+            }
+          ]}>
+            <Icon name="chevron-left" size={40} color="#F0A56C" />
+          </Animated.View>
         </Animated.View>
-      </Animated.View>
+      );
+    } else {
+      // Version Android
+      return (
+        <TouchableOpacity 
+          style={styles.voteButton}
+          onPress={() => setCardModalVisible(true)}
+        >
+          <View style={styles.voteButtonContent}>
+            <Icon name="thumb-down" size={24} color="#FFF" />
+            <Text style={styles.voteButtonText}>  /  </Text>
+            <Icon name="thumb-up" size={24} color="#FFF" />
+          </View>
+        </TouchableOpacity>
+      );
+    }
+  };
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
+  return (
+    <LinearGradient colors={['#4c0080', '#2d004d']} style={styles.container}>
+      <TouchableOpacity style={styles.quitButton} onPress={handleQuit}>
+        <Icon name="arrow-back" size={34} color="#fff" />
+      </TouchableOpacity>
+
+      {renderVoteSystem()}
 
       <View style={styles.header}>
         <Text style={styles.roomNumber}>Salon numéro</Text>
@@ -859,6 +877,33 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 12,
     marginTop: 2,
+  },
+  voteButton: {
+    position: 'absolute',
+    right: 20,
+    top: '40%',
+    backgroundColor: '#691587',
+    padding: 15,
+    borderRadius: 10,
+    elevation: 5,
+    zIndex: 1000,
+  },
+  voteButtonContent: {
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  voteButtonText: {
+    color: '#FFF',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 5,
+    fontFamily: 'Krub-Bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 export default QueueScreen;
