@@ -5,7 +5,7 @@ Party Mix est une application mobile qui révolutionne l'écoute musicale en gro
 <a href="https://play.google.com/store/apps/details?id=com.eliottdev.partymix">
   <img alt="Disponible sur Google Play" src="https://play.google.com/intl/en_us/badges/static/images/badges/fr_badge_web_generic.png" height="55"/>
 </a>
-<a href="https://apps.apple.com/fr/app/party-mix/id123456789">
+<a href="https://apps.apple.com/fr/app/party-mix/id6695729598">
   <img alt="Télécharger sur l'App Store" src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" height="55"/>
 </a>
 
